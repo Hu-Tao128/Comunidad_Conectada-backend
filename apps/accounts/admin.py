@@ -4,7 +4,7 @@ from .models import Perfil, Usuario
 
 @admin.register(Usuario)
 class UsuarioAdmin(admin.ModelAdmin):
-    list_display = ("username", "email", "first_name", "last_name", "is_active", "is_staff")
+    list_display = ("username", "nombre_completo", "email", "status", "is_active", "is_staff")
     search_fields = ("username", "email", "first_name", "last_name")
     list_filter = ("is_active", "status", "is_staff", "groups")
     ordering = ("username",)

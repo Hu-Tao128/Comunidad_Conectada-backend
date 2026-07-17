@@ -21,8 +21,16 @@ class Usuario(AbstractUser):
         ordering = ("username",)
         permissions = (("can_manage_users", "Can manage users"),)
 
+    @property
+    def nombre_completo(self) -> str:
+        """Nombre completo usando los datos del perfil cuando existen."""
+        perfil = getattr(self, "perfil", None)
+        nombres = (getattr(perfil, "nombres", "") or self.first_name).strip()
+        apellidos = (getattr(perfil, "apellidos", "") or self.last_name).strip()
+        return f"{nombres} {apellidos}".strip() or self.username
+
     def __str__(self) -> str:
-        return self.get_full_name() or self.username
+        return f"{self.nombre_completo} ({self.username})"
 
 
 class Perfil(models.Model):
@@ -32,7 +40,6 @@ class Perfil(models.Model):
     nombres = models.CharField(max_length=100, blank=True)
     apellidos = models.CharField(max_length=150, blank=True)
     numero_casa = models.CharField(max_length=30, blank=True)
-    rol = models.CharField(max_length=80, blank=True)
     telefono = models.CharField(max_length=30, blank=True)
     casa = models.ForeignKey("communities.Casa", on_delete=models.PROTECT, related_name="perfiles", null=True, blank=True)
     avatar = models.ImageField(upload_to="perfiles/", blank=True)
