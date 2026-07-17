@@ -6,24 +6,19 @@ from django.db import models
 from apps.accounts.models import Usuario
 from apps.communities.models import Privada
 from common.models import BaseModel
+from common.choices import EstadoIncidente, Prioridad
 
 
 class Reporte(BaseModel):
     """Reporte general creado por un usuario."""
-
-    class Estado(models.TextChoices):
-        ABIERTO = "abierto", "Abierto"
-        EN_REVISION = "en_revision", "En revisión"
-        RESUELTO = "resuelto", "Resuelto"
-        CERRADO = "cerrado", "Cerrado"
 
     privada = models.ForeignKey(Privada, on_delete=models.PROTECT, related_name="reportes")
     num = models.PositiveIntegerField(unique=True)
     titulo = models.CharField(max_length=180)
     descripcion = models.TextField(validators=[MinLengthValidator(10)])
     tipo = models.CharField(max_length=80, blank=True)
-    prioridad = models.CharField(max_length=30, blank=True)
-    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.ABIERTO, db_index=True)
+    prioridad = models.CharField(max_length=30, choices=Prioridad.choices, default=Prioridad.MEDIA, blank=True)
+    estado = models.CharField(max_length=20, choices=EstadoIncidente.choices, default=EstadoIncidente.PENDIENTE, db_index=True)
     fecha_suceso = models.DateField(null=True, blank=True)
     hora_suceso = models.TimeField(null=True, blank=True)
     evidencia = models.ImageField(upload_to="reportes/", blank=True)
@@ -44,15 +39,9 @@ class Reporte(BaseModel):
 class Incidente(BaseModel):
     """Detalle operativo opcional asociado a un reporte."""
 
-    class Tipo(models.TextChoices):
-        SEGURIDAD = "seguridad", "Seguridad"
-        MANTENIMIENTO = "mantenimiento", "Mantenimiento"
-        SERVICIOS = "servicios", "Servicios"
-        OTRO = "otro", "Otro"
-
     num = models.PositiveIntegerField(unique=True)
     reporte = models.ForeignKey(Reporte, on_delete=models.CASCADE, related_name="incidentes", null=True, blank=True)
-    tipo = models.CharField(max_length=20, choices=Tipo.choices, default=Tipo.OTRO)
+    tipo = models.CharField(max_length=80, blank=True)
     ubicacion = models.CharField(max_length=255, blank=True)
     evidencia = models.ImageField(upload_to="incidentes/", blank=True)
     prioridad = models.CharField(max_length=30, blank=True)

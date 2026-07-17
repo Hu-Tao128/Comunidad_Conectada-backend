@@ -6,6 +6,7 @@ from django.db import models
 from apps.accounts.models import Usuario
 from apps.communities.models import Privada
 from common.models import BaseModel
+from common.choices import EstadoPago
 
 
 class Cuota(BaseModel):
@@ -33,17 +34,12 @@ class Cuota(BaseModel):
 class Pago(BaseModel):
     """Pago aplicado a una cuota."""
 
-    class Estado(models.TextChoices):
-        PENDIENTE = "pendiente", "Pendiente"
-        APROBADO = "aprobado", "Aprobado"
-        RECHAZADO = "rechazado", "Rechazado"
-
     cuota = models.ForeignKey(Cuota, on_delete=models.PROTECT, related_name="pagos")
     pagador = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name="pagos")
     privada = models.ForeignKey(Privada, on_delete=models.PROTECT, related_name="pagos")
     monto = models.DecimalField(max_digits=12, decimal_places=2, validators=[MinValueValidator(0.01)])
     num = models.PositiveIntegerField(unique=True)
-    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
+    estado = models.CharField(max_length=20, choices=EstadoPago.choices, default=EstadoPago.PENDIENTE, db_index=True)
     pagado_en = models.DateTimeField(null=True, blank=True)
     fecha_pago = models.DateTimeField(null=True, blank=True)
     fecha_validacion = models.DateTimeField(null=True, blank=True)

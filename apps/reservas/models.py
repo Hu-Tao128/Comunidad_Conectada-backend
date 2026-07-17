@@ -6,15 +6,11 @@ from django.db import models
 from apps.accounts.models import Usuario
 from apps.areas.models import AreaComunitaria
 from common.models import BaseModel
+from common.choices import EstadoReservacion
 
 
 class Reservacion(BaseModel):
     """Reserva de un área por un usuario."""
-
-    class Estado(models.TextChoices):
-        PENDIENTE = "pendiente", "Pendiente"
-        CONFIRMADA = "confirmada", "Confirmada"
-        CANCELADA = "cancelada", "Cancelada"
 
     folio = models.PositiveIntegerField(unique=True)
     area = models.ForeignKey(AreaComunitaria, on_delete=models.PROTECT, related_name="reservaciones")
@@ -23,7 +19,7 @@ class Reservacion(BaseModel):
     hora_inicio = models.TimeField(db_index=True)
     hora_fin = models.TimeField(db_index=True)
     num_asistentes = models.PositiveIntegerField(default=1)
-    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PENDIENTE, db_index=True)
+    estado = models.CharField(max_length=20, choices=EstadoReservacion.choices, default=EstadoReservacion.PENDIENTE, db_index=True)
     descripcion = models.TextField(blank=True)
 
     class Meta:
