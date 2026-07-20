@@ -1,10 +1,11 @@
 """Rutas versionables de la API REST."""
 
 from django.urls import include, path
-from rest_framework_simplejwt.views import TokenObtainPairView, TokenRefreshView
+from apps.auth.views import TokenObtainPairEmailView
+from rest_framework_simplejwt.views import TokenRefreshView
 
 urlpatterns = [
-    path("auth/token/", TokenObtainPairView.as_view(), name="token_obtain_pair"),
+    path("auth/token/", TokenObtainPairEmailView.as_view(), name="token_obtain_pair"),
     path("auth/token/refresh/", TokenRefreshView.as_view(), name="token_refresh"),
     path("", include("apps.accounts.urls")),
     path("", include("apps.communities.urls")),

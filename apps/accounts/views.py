@@ -1,9 +1,15 @@
+"""Vistas para cuentas de usuario."""
+
+from rest_framework import generics
+from rest_framework.response import Response
+from rest_framework_simplejwt.authentication import JWTAuthentication
+
 from common.mixins import ReadOnlyViewSet
 from .models import Usuario
 
 from .filters import UsuarioFilter
 from .permissions import AccountsReadPermission
-from .serializers import UsuarioSerializer
+from .serializers import UsuarioSerializer, PerfilSerializer
 
 
 class UsuarioViewSet(ReadOnlyViewSet):
@@ -13,3 +19,14 @@ class UsuarioViewSet(ReadOnlyViewSet):
     filterset_class = UsuarioFilter
     search_fields = ("username", "first_name", "last_name", "email")
     ordering_fields = ("username", "date_joined")
+
+
+class UsuarioMeView(generics.RetrieveAPIView):
+    """Vista para obtener el usuario autenticado."""
+
+    serializer_class = UsuarioSerializer
+    permission_classes = (AccountsReadPermission,)
+    authentication_classes = (JWTAuthentication,)
+
+    def get_object(self):
+        return self.request.user
