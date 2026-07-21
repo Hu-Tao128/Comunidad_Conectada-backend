@@ -18,6 +18,7 @@ SECRET_KEY = config("SECRET_KEY", default="django-insecure-change-me")
 DEBUG = True
 
 ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",") if config("ALLOWED_HOSTS", default="") else []
+ALLOWED_HOSTS += ["healthcheck.railway.app", ".railway.app"]
 
 
 # Application definition
