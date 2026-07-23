@@ -40,6 +40,7 @@ class Perfil(models.Model):
     nombres = models.CharField(max_length=100, blank=True)
     apellidos = models.CharField(max_length=150, blank=True)
     numero_casa = models.CharField(max_length=30, blank=True)
+    codigo_postal = models.CharField(max_length=10, blank=True)
     telefono = models.CharField(max_length=30, blank=True)
     casa = models.ForeignKey("communities.Casa", on_delete=models.PROTECT, related_name="perfiles", null=True, blank=True)
     avatar = models.ImageField(upload_to="perfiles/", blank=True)

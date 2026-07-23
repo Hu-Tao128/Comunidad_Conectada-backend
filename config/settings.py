@@ -17,7 +17,11 @@ SECRET_KEY = config("SECRET_KEY", default="django-insecure-change-me")
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = config("ALLOWED_HOSTS", default="").split(",") if config("ALLOWED_HOSTS", default="") else []
+configured_allowed_hosts = config(
+    "ALLOWED_HOSTS",
+    default="localhost,127.0.0.1",
+)
+ALLOWED_HOSTS = [host.strip() for host in configured_allowed_hosts.split(",") if host.strip()]
 ALLOWED_HOSTS += ["healthcheck.railway.app", ".railway.app"]
 
 
@@ -158,6 +162,7 @@ SIMPLE_JWT = {
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:3000",
     "http://127.0.0.1:3000",
+    "http://127.0.0.1",
     "https://comunidad-conectada-self.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
