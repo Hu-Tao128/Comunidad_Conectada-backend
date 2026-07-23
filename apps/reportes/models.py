@@ -6,7 +6,16 @@ from django.db import models
 from apps.accounts.models import Usuario
 from apps.communities.models import Privada
 from common.models import BaseModel
-from common.choices import EstadoIncidente, Prioridad
+from common.choices import Prioridad
+
+
+class EstadoReporte(models.TextChoices):
+    """Estados que puede tener un reporte dentro de este módulo."""
+
+    PENDIENTE = "pendiente", "Pendiente"
+    EN_PROCESO = "en_proceso", "En proceso"
+    RESUELTO = "resuelto", "Resuelto"
+    CONCLUIDO = "concluido", "Concluido"
 
 
 class Reporte(BaseModel):
@@ -18,7 +27,7 @@ class Reporte(BaseModel):
     descripcion = models.TextField(validators=[MinLengthValidator(10)])
     tipo = models.CharField(max_length=80, blank=True)
     prioridad = models.CharField(max_length=30, choices=Prioridad.choices, default=Prioridad.MEDIA, blank=True)
-    estado = models.CharField(max_length=20, choices=EstadoIncidente.choices, default=EstadoIncidente.PENDIENTE, db_index=True)
+    estado = models.CharField(max_length=20, choices=EstadoReporte.choices, default=EstadoReporte.PENDIENTE, db_index=True)
     fecha_suceso = models.DateField(null=True, blank=True)
     hora_suceso = models.TimeField(null=True, blank=True)
     evidencia = models.ImageField(upload_to="reportes/", blank=True)
