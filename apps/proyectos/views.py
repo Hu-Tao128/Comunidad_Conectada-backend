@@ -1,11 +1,11 @@
-from common.mixins import ReadOnlyViewSet
+from common.mixins import PrivateScopedViewSet
 from .filters import ProyectoFilter
 from .permissions import ProyectoReadPermission
 from .models import Proyecto
 from .serializers import ProyectoSerializer
 
 
-class ProyectoViewSet(ReadOnlyViewSet):
+class ProyectoViewSet(PrivateScopedViewSet):
     queryset = Proyecto.objects.filter(status="activo", deleted_at__isnull=True).select_related("privada", "usuario")
     serializer_class = ProyectoSerializer
     permission_classes = (ProyectoReadPermission,)

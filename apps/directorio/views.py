@@ -1,4 +1,4 @@
-from common.mixins import ReadOnlyViewSet
+from common.mixins import PrivateScopedViewSet
 
 from .filters import DirectorioFilter
 from .models import Directorio
@@ -6,7 +6,7 @@ from .permissions import DirectorioReadPermission
 from .serializers import DirectorioSerializer
 
 
-class DirectorioViewSet(ReadOnlyViewSet):
+class DirectorioViewSet(PrivateScopedViewSet):
     queryset = Directorio.objects.filter(status="activo", deleted_at__isnull=True).select_related("privada", "created_by")
     serializer_class = DirectorioSerializer
     permission_classes = (DirectorioReadPermission,)

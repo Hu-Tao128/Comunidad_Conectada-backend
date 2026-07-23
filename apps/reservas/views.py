@@ -1,11 +1,12 @@
-from common.mixins import ReadOnlyViewSet
+from common.mixins import PrivateScopedViewSet
 from .filters import ReservacionFilter
 from .permissions import ReservacionReadPermission
 from .models import Reservacion
 from .serializers import ReservacionSerializer
 
 
-class ReservacionViewSet(ReadOnlyViewSet):
+class ReservacionViewSet(PrivateScopedViewSet):
+    private_lookup = "area__privada_id"
     queryset = Reservacion.objects.filter(status="activo", deleted_at__isnull=True).select_related("area", "area__privada", "usuario")
     serializer_class = ReservacionSerializer
     permission_classes = (ReservacionReadPermission,)

@@ -1,11 +1,11 @@
-from common.mixins import ReadOnlyViewSet
+from common.mixins import PrivateScopedViewSet
 from .filters import CuotaFilter, PagoFilter
 from .permissions import PagosReadPermission
 from .models import Cuota, Pago
 from .serializers import CuotaSerializer, PagoSerializer
 
 
-class CuotaViewSet(ReadOnlyViewSet):
+class CuotaViewSet(PrivateScopedViewSet):
     queryset = Cuota.objects.filter(status="activo", deleted_at__isnull=True).select_related("privada")
     serializer_class = CuotaSerializer
     permission_classes = (PagosReadPermission,)
@@ -14,7 +14,7 @@ class CuotaViewSet(ReadOnlyViewSet):
     ordering_fields = ("fecha_vencimiento", "monto")
 
 
-class PagoViewSet(ReadOnlyViewSet):
+class PagoViewSet(PrivateScopedViewSet):
     queryset = Pago.objects.filter(status="activo", deleted_at__isnull=True).select_related("cuota", "cuota__privada", "pagador", "privada", "validador")
     serializer_class = PagoSerializer
     permission_classes = (PagosReadPermission,)

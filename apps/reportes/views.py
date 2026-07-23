@@ -1,11 +1,11 @@
-from common.mixins import ReadOnlyViewSet
+from common.mixins import PrivateScopedViewSet
 from .filters import IncidenteFilter, ReporteFilter
 from .permissions import ReportesReadPermission
 from .models import Incidente, Reporte
 from .serializers import IncidenteSerializer, ReporteSerializer
 
 
-class ReporteViewSet(ReadOnlyViewSet):
+class ReporteViewSet(PrivateScopedViewSet):
     queryset = Reporte.objects.filter(status="activo", deleted_at__isnull=True).select_related("privada", "creador", "supervisor").prefetch_related("incidentes")
     serializer_class = ReporteSerializer
     permission_classes = (ReportesReadPermission,)
@@ -14,7 +14,7 @@ class ReporteViewSet(ReadOnlyViewSet):
     ordering_fields = ("created_at", "estado")
 
 
-class IncidenteViewSet(ReadOnlyViewSet):
+class IncidenteViewSet(PrivateScopedViewSet):
     queryset = Incidente.objects.filter(status="activo", deleted_at__isnull=True).select_related("reporte", "usuario", "privada")
     serializer_class = IncidenteSerializer
     permission_classes = (ReportesReadPermission,)
