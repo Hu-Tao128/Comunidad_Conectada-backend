@@ -1,6 +1,7 @@
-from common.permissions import ReadOnlyAuthenticated
+from rest_framework.permissions import IsAuthenticated, SAFE_METHODS
 
 
-class ReservacionReadPermission(ReadOnlyAuthenticated):
-    pass
+class ReservacionReadPermission(IsAuthenticated):
+    def has_permission(self, request, view):
+        return request.method in SAFE_METHODS or request.method == "POST"
 

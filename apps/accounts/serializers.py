@@ -28,6 +28,15 @@ class UsuarioSerializer(serializers.ModelSerializer):
             return None
 
     def get_membresias(self, obj):
+        memberships = PrivadaMiembro.objects.filter(
+            usuario=obj,
+            status="activo",
+            deleted_at__isnull=True,
+        ).select_related("privada")
+        request = self.context.get("request")
+        privada_id = request.query_params.get("privada") if request else None
+        if privada_id:
+            memberships = memberships.filter(privada_id=privada_id)
         return [
             {
                 "id": str(m.id),
@@ -41,21 +50,22 @@ class UsuarioSerializer(serializers.ModelSerializer):
                     ).values_list("modulo__codigo", flat=True)
                 ),
             }
-            for m in PrivadaMiembro.objects.filter(
-                usuario=obj,
-                status="activo",
-                deleted_at__isnull=True,
-            ).select_related("privada")
+            for m in memberships
         ]
 
     def get_role(self, obj):
         if obj.is_staff:
             return "admin"
-        membership = PrivadaMiembro.objects.filter(
+        memberships = PrivadaMiembro.objects.filter(
             usuario=obj,
             status="activo",
             deleted_at__isnull=True,
-        ).order_by("-rol").first()
+        )
+        request = self.context.get("request")
+        privada_id = request.query_params.get("privada") if request else None
+        if privada_id:
+            memberships = memberships.filter(privada_id=privada_id)
+        membership = memberships.order_by("-rol").first()
         return membership.rol if membership else "habitante"
 
 

@@ -1,5 +1,5 @@
 from django.contrib import admin
-from .models import Cuota, Pago
+from .models import Cuota, Pago, PagoIntento
 
 
 @admin.register(Cuota)
@@ -14,9 +14,17 @@ class CuotaAdmin(admin.ModelAdmin):
 
 @admin.register(Pago)
 class PagoAdmin(admin.ModelAdmin):
-    list_display = ("num", "cuota", "pagador", "monto", "estado", "created_at")
-    search_fields = ("num", "pagador__username", "cuota__nombre")
+    list_display = ("cuota", "pagador", "estado", "fecha_pago", "created_at")
+    search_fields = ("pagador__username", "pagador__email", "cuota__nombre")
     list_filter = ("estado", "status")
     ordering = ("-created_at",)
     readonly_fields = ("created_at", "updated_at", "deleted_at")
     autocomplete_fields = ("cuota", "pagador", "privada", "validador", "created_by", "updated_by")
+
+
+@admin.register(PagoIntento)
+class PagoIntentoAdmin(admin.ModelAdmin):
+    list_display = ("pago", "estado", "enviado_en", "revisado_en", "validador")
+    search_fields = ("pago__pagador__username", "pago__cuota__nombre")
+    list_filter = ("estado",)
+    readonly_fields = ("created_at", "updated_at", "enviado_en")

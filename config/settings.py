@@ -37,6 +37,7 @@ INSTALLED_APPS = [
     "django.contrib.staticfiles",
     "rest_framework",
     "django_filters",
+    "cloudinary",
     "apps.core.apps.CoreConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.auth.apps.AuthConfig",
@@ -166,3 +167,7 @@ CORS_ALLOWED_ORIGINS = [
     "https://comunidad-conectada-self.vercel.app",
 ]
 CORS_ALLOW_CREDENTIALS = True
+
+CLOUDINARY_CLOUD_NAME = config("CLOUDINARY_CLOUD_NAME", default="")
+CLOUDINARY_API_KEY = config("CLOUDINARY_API_KEY", default="")
+CLOUDINARY_API_SECRET = config("CLOUDINARY_API_SECRET", default="")

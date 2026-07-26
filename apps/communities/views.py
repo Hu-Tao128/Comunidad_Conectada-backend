@@ -224,6 +224,9 @@ class UnirsePrivadaView(APIView):
             rol=RolPrivada.HABITANTE,
             created_by=request.user,
         )
+        from apps.pagos.services import crear_pagos_para_habitante
+
+        crear_pagos_para_habitante(miembro=miembro)
         return Response(
             {
                 "privada": PrivadaSerializer(privada).data,

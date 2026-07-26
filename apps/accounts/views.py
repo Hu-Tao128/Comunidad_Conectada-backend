@@ -2,6 +2,7 @@
 
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
+from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.response import Response
 from rest_framework.views import APIView
 from rest_framework_simplejwt.authentication import JWTAuthentication
@@ -9,7 +10,7 @@ from rest_framework_simplejwt.serializers import TokenObtainPairSerializer
 
 from common.mixins import ReadOnlyViewSet
 from .models import Perfil, Usuario
-from apps.communities.models import PrivadaMiembro
+from apps.communities.models import PrivadaMiembro, RolPrivada
 
 from .filters import UsuarioFilter
 from .permissions import AccountsReadPermission, ModeratorPermission
@@ -26,15 +27,21 @@ class UsuarioViewSet(ReadOnlyViewSet):
 
     def get_queryset(self):
         queryset = super().get_queryset()
-        if self.request.user.is_staff:
-            return queryset
-        private_ids = PrivadaMiembro.objects.filter(
+        privada_id = self.request.query_params.get("privada")
+        if not privada_id:
+            if self.request.user.is_staff:
+                return queryset
+            raise ValidationError({"privada": "Selecciona una privada para consultar sus usuarios."})
+        if not self.request.user.is_staff and not PrivadaMiembro.objects.filter(
+            privada_id=privada_id,
             usuario=self.request.user,
+            rol=RolPrivada.MODERADOR,
             status="activo",
             deleted_at__isnull=True,
-        ).values("privada_id")
+        ).exists():
+            raise PermissionDenied("No eres moderador de la privada seleccionada.")
         return queryset.filter(
-            membresias_privada__privada_id__in=private_ids,
+            membresias_privada__privada_id=privada_id,
             membresias_privada__status="activo",
             membresias_privada__deleted_at__isnull=True,
         ).distinct()
