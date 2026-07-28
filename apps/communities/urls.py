@@ -10,6 +10,8 @@ from .views import (
     AdminModulosView,
     AdminPrivadasView,
     AdminPrivadaModulosView,
+    AdministrarMiembroView,
+    MiembrosPrivadaView,
     PrivadaViewSet,
     PromoverModeradorView,
     UnirsePrivadaView,
@@ -27,6 +29,8 @@ urlpatterns = [
     path("privadas/mias/", MisPrivadasView.as_view(), name="mis-privadas"),
     path("privadas/crear/", CrearPrivadaView.as_view(), name="crear-privada"),
     path("privadas/unirse/", UnirsePrivadaView.as_view(), name="unirse-privada"),
+    path("privadas/<uuid:privada_id>/miembros/", MiembrosPrivadaView.as_view(), name="miembros-privada"),
+    path("privadas/<uuid:privada_id>/miembros/<uuid:usuario_id>/", AdministrarMiembroView.as_view(), name="administrar-miembro"),
     path("privadas/<uuid:privada_id>/miembros/<uuid:usuario_id>/promover/", PromoverModeradorView.as_view(), name="promover-moderador"),
 ]
 urlpatterns += router.urls

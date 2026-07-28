@@ -28,15 +28,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
             return None
 
     def get_membresias(self, obj):
-        memberships = PrivadaMiembro.objects.filter(
-            usuario=obj,
-            status="activo",
-            deleted_at__isnull=True,
-        ).select_related("privada")
+        memberships = PrivadaMiembro.all_objects.filter(usuario=obj, deleted_at__isnull=True).select_related("privada")
         request = self.context.get("request")
         privada_id = request.query_params.get("privada") if request else None
         if privada_id:
-            memberships = memberships.filter(privada_id=privada_id)
+            memberships = memberships.filter(privada_id=privada_id, status__in=("activo", "suspendido"))
+        else:
+            memberships = memberships.filter(status="activo")
         return [
             {
                 "id": str(m.id),
@@ -44,6 +42,9 @@ class UsuarioSerializer(serializers.ModelSerializer):
                 "privada_nombre": m.privada.nombre,
                 "privada_codigo": m.privada.codigo,
                 "rol": m.rol,
+                "status": m.status,
+                "fecha_ingreso": m.created_at,
+                "fecha_inactividad": m.inactivated_at,
                 "modulos_contratados": list(
                     m.privada.modulos_contratados.filter(
                         status="activo", deleted_at__isnull=True, modulo__activo=True
@@ -56,15 +57,13 @@ class UsuarioSerializer(serializers.ModelSerializer):
     def get_role(self, obj):
         if obj.is_staff:
             return "admin"
-        memberships = PrivadaMiembro.objects.filter(
-            usuario=obj,
-            status="activo",
-            deleted_at__isnull=True,
-        )
+        memberships = PrivadaMiembro.all_objects.filter(usuario=obj, deleted_at__isnull=True)
         request = self.context.get("request")
         privada_id = request.query_params.get("privada") if request else None
         if privada_id:
-            memberships = memberships.filter(privada_id=privada_id)
+            memberships = memberships.filter(privada_id=privada_id, status__in=("activo", "suspendido"))
+        else:
+            memberships = memberships.filter(status="activo")
         membership = memberships.order_by("-rol").first()
         return membership.rol if membership else "habitante"
 
@@ -73,7 +72,7 @@ class PerfilSerializer(serializers.ModelSerializer):
     class Meta:
         model = Perfil
         fields = ("id", "usuario", "nombres", "apellidos", "numero_casa", "codigo_postal", "telefono", "casa", "avatar", "bio")
-        read_only_fields = ("id", "usuario", "casa")
+        read_only_fields = ("id", "usuario", "casa", "avatar")
 
 
 class RegistroSerializer(serializers.Serializer):

@@ -1,5 +1,8 @@
 """Vistas para cuentas de usuario."""
 
+from django.conf import settings
+import cloudinary
+import cloudinary.uploader
 from rest_framework import generics, status
 from rest_framework.permissions import AllowAny, IsAdminUser, IsAuthenticated
 from rest_framework.exceptions import PermissionDenied, ValidationError
@@ -42,7 +45,7 @@ class UsuarioViewSet(ReadOnlyViewSet):
             raise PermissionDenied("No eres moderador de la privada seleccionada.")
         return queryset.filter(
             membresias_privada__privada_id=privada_id,
-            membresias_privada__status="activo",
+            membresias_privada__status__in=("activo", "suspendido"),
             membresias_privada__deleted_at__isnull=True,
         ).distinct()
 
@@ -88,6 +91,33 @@ class PerfilMeView(generics.RetrieveUpdateAPIView):
     def get_object(self):
         perfil, _ = Perfil.objects.get_or_create(usuario=self.request.user)
         return perfil
+
+    def post(self, request):
+        archivo = request.FILES.get("avatar")
+        if not archivo:
+            raise ValidationError({"avatar": "Selecciona una imagen."})
+        if archivo.size > 8 * 1024 * 1024:
+            raise ValidationError({"avatar": "La imagen no puede superar 8 MB."})
+        if archivo.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise ValidationError({"avatar": "Solo se permiten imágenes JPG, PNG o WEBP."})
+        if not all((settings.CLOUDINARY_CLOUD_NAME, settings.CLOUDINARY_API_KEY, settings.CLOUDINARY_API_SECRET)):
+            raise ValidationError({"avatar": "Cloudinary no está configurado en el servidor."})
+        cloudinary.config(
+            cloud_name=settings.CLOUDINARY_CLOUD_NAME,
+            api_key=settings.CLOUDINARY_API_KEY,
+            api_secret=settings.CLOUDINARY_API_SECRET,
+            secure=True,
+        )
+        resultado = cloudinary.uploader.upload(
+            archivo,
+            folder=f"comunidad_conectada/perfiles/{request.user.id}",
+            resource_type="image",
+            overwrite=False,
+        )
+        perfil = self.get_object()
+        perfil.avatar = resultado["secure_url"]
+        perfil.save(update_fields=("avatar",))
+        return Response(PerfilSerializer(perfil).data)
 
 
 class AdminUsuariosView(generics.ListCreateAPIView):

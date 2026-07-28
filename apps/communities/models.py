@@ -47,6 +47,7 @@ class PrivadaMiembro(BaseModel):
     privada = models.ForeignKey(Privada, on_delete=models.CASCADE, related_name="miembros")
     usuario = models.ForeignKey("accounts.Usuario", on_delete=models.CASCADE, related_name="membresias_privada")
     rol = models.CharField(max_length=12, choices=RolPrivada.choices, default=RolPrivada.HABITANTE)
+    inactivated_at = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         constraints = [

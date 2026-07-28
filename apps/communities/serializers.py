@@ -1,5 +1,5 @@
 from rest_framework import serializers
-from .models import Casa, Modulo, ModuloSistema, Privada, PrivadaMiembro, PrivadaModulo
+from .models import Casa, Modulo, ModuloSistema, Privada, PrivadaMiembro, PrivadaModulo, RolPrivada
 
 
 class PrivadaSerializer(serializers.ModelSerializer):
@@ -33,8 +33,8 @@ class PrivadaMiembroSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PrivadaMiembro
-        fields = ("id", "privada", "privada_nombre", "privada_codigo", "modulos_contratados", "usuario", "rol", "status")
-        read_only_fields = ("id", "usuario", "rol", "status")
+        fields = ("id", "privada", "privada_nombre", "privada_codigo", "modulos_contratados", "usuario", "rol", "status", "created_at", "inactivated_at")
+        read_only_fields = ("id", "usuario", "rol", "status", "created_at", "inactivated_at")
 
     def get_modulos_contratados(self, obj):
         return [
@@ -43,6 +43,16 @@ class PrivadaMiembroSerializer(serializers.ModelSerializer):
                 status="activo", deleted_at__isnull=True, modulo__activo=True
             ).select_related("modulo")
         ]
+
+
+class AgregarMiembroSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    rol = serializers.ChoiceField(choices=RolPrivada.choices)
+
+
+class EditarMiembroSerializer(serializers.Serializer):
+    rol = serializers.ChoiceField(choices=RolPrivada.choices)
+    status = serializers.ChoiceField(choices=(("activo", "Activo"), ("suspendido", "Inactivo")))
 
 
 class ModuloSistemaSerializer(serializers.ModelSerializer):

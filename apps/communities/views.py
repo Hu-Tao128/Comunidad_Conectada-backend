@@ -1,5 +1,9 @@
 from django.db import transaction
+from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.utils import timezone
+import cloudinary
+import cloudinary.uploader
 from rest_framework import generics, status
 from rest_framework.exceptions import PermissionDenied, ValidationError
 from rest_framework.permissions import IsAuthenticated
@@ -23,6 +27,8 @@ from .serializers import (
     ModuloSistemaSerializer,
     PrivadaAdminSerializer,
     AdminPrivadaModulosSerializer,
+    AgregarMiembroSerializer,
+    EditarMiembroSerializer,
     PrivadaMiembroSerializer,
     PrivadaSerializer,
     UnirsePrivadaSerializer,
@@ -142,9 +148,9 @@ class MisPrivadasView(generics.ListAPIView):
     pagination_class = None
 
     def get_queryset(self):
-        return PrivadaMiembro.objects.filter(
+        return PrivadaMiembro.all_objects.filter(
             usuario=self.request.user,
-            status="activo",
+            status__in=("activo", "suspendido"),
             deleted_at__isnull=True,
             privada__status="activo",
             privada__deleted_at__isnull=True,
@@ -266,3 +272,121 @@ class PromoverModeradorView(APIView):
         miembro.updated_by = request.user
         miembro.save(update_fields=("rol", "updated_by", "updated_at"))
         return Response(PrivadaMiembroSerializer(miembro).data)
+
+
+def _exigir_moderador(request, privada_id):
+    if request.user.is_staff:
+        return
+    if not PrivadaMiembro.objects.filter(
+        privada_id=privada_id, usuario=request.user, rol=RolPrivada.MODERADOR,
+        status="activo", deleted_at__isnull=True,
+    ).exists():
+        raise PermissionDenied("Solo un moderador activo puede gestionar usuarios de esta privada.")
+
+
+class MiembrosPrivadaView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    @transaction.atomic
+    def post(self, request, privada_id):
+        _exigir_moderador(request, privada_id)
+        serializer = AgregarMiembroSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        User = get_user_model()
+        try:
+            usuario = User.objects.get(
+                email__iexact=serializer.validated_data["email"].strip(),
+                is_active=True,
+                status="activo",
+            )
+        except User.DoesNotExist:
+            raise ValidationError({"email": "No existe una cuenta activa con ese correo electrónico."})
+
+        miembro, creado = PrivadaMiembro.all_objects.get_or_create(
+            privada_id=privada_id,
+            usuario=usuario,
+            defaults={
+                "rol": serializer.validated_data["rol"],
+                "created_by": request.user,
+            },
+        )
+        if not creado and miembro.status == "activo" and miembro.deleted_at is None:
+            raise ValidationError({"email": "Este usuario ya pertenece a la privada."})
+        if not creado:
+            miembro.status = "activo"
+            miembro.deleted_at = None
+            miembro.inactivated_at = None
+            miembro.rol = serializer.validated_data["rol"]
+            miembro.updated_by = request.user
+            miembro.save(update_fields=("status", "deleted_at", "inactivated_at", "rol", "updated_by", "updated_at"))
+
+        if miembro.rol == RolPrivada.HABITANTE:
+            from apps.pagos.services import crear_pagos_para_habitante
+            crear_pagos_para_habitante(miembro=miembro)
+        return Response(PrivadaMiembroSerializer(miembro).data, status=status.HTTP_201_CREATED)
+
+
+class AdministrarMiembroView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def _miembro(self, privada_id, usuario_id):
+        try:
+            return PrivadaMiembro.all_objects.select_related("usuario", "privada").get(
+                privada_id=privada_id, usuario_id=usuario_id, deleted_at__isnull=True
+            )
+        except PrivadaMiembro.DoesNotExist:
+            raise ValidationError("El usuario no pertenece a esta privada.")
+
+    @transaction.atomic
+    def patch(self, request, privada_id, usuario_id):
+        _exigir_moderador(request, privada_id)
+        miembro = self._miembro(privada_id, usuario_id)
+        if miembro.usuario_id == request.user.id:
+            raise PermissionDenied("No puedes editar tu propia membresía desde Gestión de Usuarios.")
+        serializer = EditarMiembroSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        nuevo_rol = serializer.validated_data["rol"]
+        nuevo_estado = serializer.validated_data["status"]
+
+        pierde_moderador = miembro.rol == RolPrivada.MODERADOR and (
+            nuevo_rol != RolPrivada.MODERADOR or nuevo_estado != "activo"
+        )
+        if pierde_moderador and not PrivadaMiembro.objects.filter(
+            privada_id=privada_id, rol=RolPrivada.MODERADOR, status="activo",
+            deleted_at__isnull=True,
+        ).exclude(pk=miembro.pk).exists():
+            raise ValidationError("La privada debe conservar al menos un moderador activo.")
+
+        miembro.rol = nuevo_rol
+        miembro.status = nuevo_estado
+        miembro.inactivated_at = timezone.now() if nuevo_estado == "suspendido" else None
+        miembro.updated_by = request.user
+        miembro.save(update_fields=("rol", "status", "inactivated_at", "updated_by", "updated_at"))
+        if nuevo_estado == "activo" and nuevo_rol == RolPrivada.HABITANTE:
+            from apps.pagos.services import crear_pagos_para_habitante
+            crear_pagos_para_habitante(miembro=miembro)
+        return Response(PrivadaMiembroSerializer(miembro).data)
+
+    def post(self, request, privada_id, usuario_id):
+        """Actualiza la foto de perfil del usuario mediante Cloudinary."""
+        _exigir_moderador(request, privada_id)
+        miembro = self._miembro(privada_id, usuario_id)
+        if miembro.usuario_id == request.user.id:
+            raise PermissionDenied("No puedes editar tu propia información desde Gestión de Usuarios.")
+        archivo = request.FILES.get("avatar")
+        if not archivo:
+            raise ValidationError({"avatar": "Selecciona una imagen."})
+        if archivo.size > 8 * 1024 * 1024 or archivo.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+            raise ValidationError({"avatar": "Usa una imagen JPG, PNG o WEBP de máximo 8 MB."})
+        if not all((settings.CLOUDINARY_CLOUD_NAME, settings.CLOUDINARY_API_KEY, settings.CLOUDINARY_API_SECRET)):
+            raise ValidationError({"avatar": "Cloudinary no está configurado en el servidor."})
+        cloudinary.config(cloud_name=settings.CLOUDINARY_CLOUD_NAME, api_key=settings.CLOUDINARY_API_KEY,
+                          api_secret=settings.CLOUDINARY_API_SECRET, secure=True)
+        resultado = cloudinary.uploader.upload(
+            archivo, folder=f"comunidad_conectada/perfiles/{privada_id}", resource_type="image", overwrite=False
+        )
+        from apps.accounts.models import Perfil
+        perfil, _ = Perfil.objects.get_or_create(usuario=miembro.usuario)
+        perfil.avatar = resultado["secure_url"]
+        perfil.save(update_fields=("avatar",))
+        return Response({"avatar": perfil.avatar})
