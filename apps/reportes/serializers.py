@@ -1,45 +1,124 @@
+from django.conf import settings
+import cloudinary
+import cloudinary.uploader
 from rest_framework import serializers
-from .models import Incidente, Reporte
+
+from .models import Incidente, Reporte, TipoReporte
 
 
-class ReporteSerializer(serializers.ModelSerializer):
+def subir_evidencia(archivo, *, usuario_id, privada_id) -> str:
+    if archivo.size > 8 * 1024 * 1024:
+        raise serializers.ValidationError({"evidencia_archivo": "La imagen no puede superar 8 MB."})
+    if archivo.content_type not in {"image/jpeg", "image/png", "image/webp"}:
+        raise serializers.ValidationError({"evidencia_archivo": "Solo se permiten imágenes JPG, PNG o WEBP."})
+    if not all((settings.CLOUDINARY_CLOUD_NAME, settings.CLOUDINARY_API_KEY, settings.CLOUDINARY_API_SECRET)):
+        raise serializers.ValidationError({"evidencia_archivo": "Cloudinary no está configurado en el servidor."})
+    cloudinary.config(cloud_name=settings.CLOUDINARY_CLOUD_NAME, api_key=settings.CLOUDINARY_API_KEY,
+                      api_secret=settings.CLOUDINARY_API_SECRET, secure=True)
+    resultado = cloudinary.uploader.upload(
+        archivo, folder=f"comunidad_conectada/incidentes/{privada_id}/{usuario_id}",
+        resource_type="image", overwrite=False,
+    )
+    return resultado["secure_url"]
+
+
+class TipoReporteSerializer(serializers.ModelSerializer):
     class Meta:
-        model = Reporte
-        fields = ("id", "num", "privada", "creador", "supervisor", "titulo", "descripcion", "tipo", "prioridad", "estado", "fecha_suceso", "hora_suceso", "evidencia", "status")
-        read_only_fields = ("id", "num", "creador", "supervisor", "estado", "status")
-        extra_kwargs = {"privada": {"required": False}}
-
-    def validate_privada(self, privada):
-        """Solo permite reportar en una privada a la que pertenece el usuario."""
-        request = self.context.get("request")
-        if request and not request.user.is_staff:
-            from apps.communities.models import PrivadaMiembro
-
-            es_miembro = PrivadaMiembro.objects.filter(
-                privada=privada,
-                usuario=request.user,
-                status="activo",
-                deleted_at__isnull=True,
-            ).exists()
-            if not es_miembro:
-                raise serializers.ValidationError(
-                    "No perteneces a la privada seleccionada."
-                )
-        return privada
-
-    def validate(self, attrs):
-        if not self.instance and "privada" not in attrs:
-            raise serializers.ValidationError(
-                {"privada": "Este campo es requerido."}
-            )
-        if self.instance and "privada" in attrs:
-            raise serializers.ValidationError(
-                {"privada": "No se puede cambiar la privada de un reporte."}
-            )
-        return attrs
+        model = TipoReporte
+        fields = ("id", "codigo", "nombre")
 
 
 class IncidenteSerializer(serializers.ModelSerializer):
+    evidencia_archivo = serializers.ImageField(write_only=True, required=False)
+    fecha_incidente = serializers.DateTimeField(required=True, allow_null=False)
+    tipo_detalle = TipoReporteSerializer(source="tipo_categoria", read_only=True)
+    habitante = serializers.SerializerMethodField()
+    tiene_reporte = serializers.SerializerMethodField()
+    reporte_id = serializers.SerializerMethodField()
+
     class Meta:
         model = Incidente
-        fields = ("id", "num", "reporte", "tipo", "prioridad", "estado", "fecha_incidente", "fecha_registro", "usuario", "privada", "ubicacion", "evidencia", "status")
+        fields = (
+            "id", "num", "titulo", "descripcion", "tipo_categoria", "tipo_detalle",
+            "prioridad", "estado", "fecha_incidente", "fecha_registro", "ubicacion",
+            "evidencia", "evidencia_archivo", "usuario", "habitante", "privada",
+            "tiene_reporte", "reporte_id", "created_at",
+        )
+        read_only_fields = ("id", "num", "evidencia", "usuario", "habitante", "estado", "fecha_registro", "tiene_reporte", "reporte_id", "created_at")
+
+    def get_habitante(self, obj):
+        perfil = getattr(obj.usuario, "perfil", None)
+        nombre = f"{getattr(perfil, 'nombres', '') or obj.usuario.first_name} {getattr(perfil, 'apellidos', '') or obj.usuario.last_name}".strip()
+        return {"id": str(obj.usuario_id), "nombre": nombre or obj.usuario.username,
+                "email": obj.usuario.email, "telefono": getattr(perfil, "telefono", "")}
+
+    def get_tiene_reporte(self, obj):
+        return obj.reportes_seguimiento.filter(status="activo", deleted_at__isnull=True).exists()
+
+    def get_reporte_id(self, obj):
+        reporte = obj.reportes_seguimiento.filter(status="activo", deleted_at__isnull=True).order_by("-created_at").first()
+        return str(reporte.id) if reporte else None
+
+    def create(self, validated_data):
+        archivo = validated_data.pop("evidencia_archivo", None)
+        incidente = super().create(validated_data)
+        if archivo:
+            incidente.evidencia = subir_evidencia(archivo, usuario_id=incidente.usuario_id, privada_id=incidente.privada_id)
+            incidente.save(update_fields=("evidencia", "updated_at"))
+        return incidente
+
+    def update(self, instance, validated_data):
+        archivo = validated_data.pop("evidencia_archivo", None)
+        incidente = super().update(instance, validated_data)
+        if archivo:
+            incidente.evidencia = subir_evidencia(archivo, usuario_id=incidente.usuario_id, privada_id=incidente.privada_id)
+            incidente.save(update_fields=("evidencia", "updated_at"))
+        return incidente
+
+
+class ReporteSerializer(serializers.ModelSerializer):
+    evidencia_archivo = serializers.ImageField(write_only=True, required=False)
+    incidente_detalle = IncidenteSerializer(source="incidente", read_only=True)
+    tipo_detalle = TipoReporteSerializer(source="tipo_categoria", read_only=True)
+    moderador = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reporte
+        fields = (
+            "id", "num", "privada", "incidente", "incidente_detalle", "creador", "moderador",
+            "titulo", "descripcion", "tipo_categoria", "tipo_detalle", "prioridad", "estado",
+            "fecha_suceso", "evidencia", "evidencia_archivo", "created_at", "updated_at",
+        )
+        read_only_fields = ("id", "num", "privada", "creador", "moderador", "estado", "tipo_categoria", "tipo_detalle", "prioridad", "fecha_suceso", "evidencia", "created_at", "updated_at")
+
+    def get_moderador(self, obj):
+        perfil = getattr(obj.creador, "perfil", None)
+        nombre = f"{getattr(perfil, 'nombres', '') or obj.creador.first_name} {getattr(perfil, 'apellidos', '') or obj.creador.last_name}".strip()
+        return {"id": str(obj.creador_id), "nombre": nombre or obj.creador.username,
+                "telefono": getattr(perfil, "telefono", ""), "email": obj.creador.email}
+
+    def validate_incidente(self, incidente):
+        if self.instance:
+            return incidente
+        return incidente
+
+    def validate(self, attrs):
+        if not self.instance and not attrs.get("evidencia_archivo"):
+            raise serializers.ValidationError({"evidencia_archivo": "Adjunta una evidencia fotográfica."})
+        return attrs
+
+    def create(self, validated_data):
+        archivo = validated_data.pop("evidencia_archivo", None)
+        reporte = super().create(validated_data)
+        if archivo:
+            reporte.evidencia = subir_evidencia(archivo, usuario_id=reporte.creador_id, privada_id=reporte.privada_id)
+            reporte.save(update_fields=("evidencia", "updated_at"))
+        return reporte
+
+    def update(self, instance, validated_data):
+        archivo = validated_data.pop("evidencia_archivo", None)
+        reporte = super().update(instance, validated_data)
+        if archivo:
+            reporte.evidencia = subir_evidencia(archivo, usuario_id=reporte.creador_id, privada_id=reporte.privada_id)
+            reporte.save(update_fields=("evidencia", "updated_at"))
+        return reporte
