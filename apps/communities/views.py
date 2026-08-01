@@ -18,6 +18,7 @@ from .models import (
     Privada,
     PrivadaMiembro,
     PrivadaModulo,
+    Reglamento,
     RolPrivada,
 )
 from .serializers import (
@@ -32,6 +33,7 @@ from .serializers import (
     PrivadaMiembroSerializer,
     PrivadaSerializer,
     UnirsePrivadaSerializer,
+    ReglamentoSerializer,
 )
 
 
@@ -282,6 +284,53 @@ def _exigir_moderador(request, privada_id):
         status="activo", deleted_at__isnull=True,
     ).exists():
         raise PermissionDenied("Solo un moderador activo puede gestionar usuarios de esta privada.")
+
+
+class ConfiguracionPrivadaView(APIView):
+    permission_classes = (IsAuthenticated,)
+
+    def _membresia(self, request, privada_id):
+        try:
+            return PrivadaMiembro.objects.select_related("privada").get(
+                privada_id=privada_id, usuario=request.user, status="activo", deleted_at__isnull=True
+            )
+        except PrivadaMiembro.DoesNotExist:
+            raise PermissionDenied("No tienes acceso activo a esta privada.")
+
+    def get(self, request, privada_id):
+        membresia = self._membresia(request, privada_id)
+        reglamento, _ = Reglamento.objects.get_or_create(
+            privada=membresia.privada, defaults={"created_by": request.user}
+        )
+        return Response({
+            "privada": PrivadaSerializer(membresia.privada).data,
+            "reglamento": ReglamentoSerializer(reglamento).data,
+            "puede_editar": request.user.is_staff or membresia.rol == RolPrivada.MODERADOR,
+        })
+
+    @transaction.atomic
+    def patch(self, request, privada_id):
+        membresia = self._membresia(request, privada_id)
+        if not request.user.is_staff and membresia.rol != RolPrivada.MODERADOR:
+            raise PermissionDenied("Solo un moderador puede editar la configuración de la privada.")
+        privada = membresia.privada
+        if "nombre" in request.data:
+            nombre = str(request.data["nombre"]).strip()
+            if len(nombre) < 3 or len(nombre) > 150:
+                raise ValidationError({"nombre": "El nombre debe tener entre 3 y 150 caracteres."})
+            privada.nombre = nombre
+            privada.updated_by = request.user
+            privada.save(update_fields=("nombre", "updated_by", "updated_at"))
+        reglamento, _ = Reglamento.objects.get_or_create(privada=privada, defaults={"created_by": request.user})
+        if "contenido" in request.data:
+            serializer = ReglamentoSerializer(reglamento, data={"contenido": request.data["contenido"]}, partial=True)
+            serializer.is_valid(raise_exception=True)
+            serializer.save(updated_by=request.user)
+        return Response({
+            "privada": PrivadaSerializer(privada).data,
+            "reglamento": ReglamentoSerializer(reglamento).data,
+            "puede_editar": True,
+        })
 
 
 class MiembrosPrivadaView(APIView):

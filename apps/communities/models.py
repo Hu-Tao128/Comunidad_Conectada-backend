@@ -41,6 +41,20 @@ class Privada(BaseModel):
         return self.nombre
 
 
+class Reglamento(BaseModel):
+    """Documento institucional único de una privada, almacenado como HTML saneado."""
+
+    privada = models.OneToOneField(Privada, on_delete=models.CASCADE, related_name="reglamento")
+    contenido = models.TextField(blank=True)
+
+    class Meta:
+        verbose_name = "reglamento"
+        verbose_name_plural = "reglamentos"
+
+    def __str__(self) -> str:
+        return f"Reglamento de {self.privada.nombre}"
+
+
 class PrivadaMiembro(BaseModel):
     """Relación de un usuario con una privada y su rol dentro de ella."""
 
