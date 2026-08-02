@@ -21,7 +21,9 @@ configured_allowed_hosts = config(
     "ALLOWED_HOSTS",
     default="localhost,127.0.0.1",
 )
-ALLOWED_HOSTS = [host.strip() for host in configured_allowed_hosts.split(",") if host.strip()]
+ALLOWED_HOSTS = [
+    host.strip() for host in configured_allowed_hosts.split(",") if host.strip()
+]
 ALLOWED_HOSTS += ["healthcheck.railway.app", ".railway.app"]
 
 
@@ -29,12 +31,14 @@ ALLOWED_HOSTS += ["healthcheck.railway.app", ".railway.app"]
 
 INSTALLED_APPS = [
     "corsheaders",
+    "cloudinary_storage",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
     "django.contrib.sessions",
     "django.contrib.messages",
     "django.contrib.staticfiles",
+    "cloudinary",
     "rest_framework",
     "django_filters",
     "apps.core.apps.CoreConfig",
@@ -96,7 +100,9 @@ DATABASES = {
         "PASSWORD": config("DB_PASSWORD", default=""),
         "HOST": config("DB_HOST", default=""),
         "PORT": config("DB_PORT", default=""),
-        "OPTIONS": {"charset": "utf8mb4"} if config("DB_ENGINE", default="django.db.backends.sqlite3").endswith("mysql") else {},
+        "OPTIONS": {"charset": "utf8mb4"}
+        if config("DB_ENGINE", default="django.db.backends.sqlite3").endswith("mysql")
+        else {},
     }
 }
 
@@ -143,6 +149,29 @@ MEDIA_URL = "media/"
 MEDIA_ROOT = BASE_DIR / "media"
 DEFAULT_AUTO_FIELD = "django.db.models.BigAutoField"
 
+# Almacenamiento de medios con Cloudinary.
+CLOUDINARY_STORAGE = {
+    "CLOUD_NAME": config("CLOUDINARY_CLOUD_NAME", default=""),
+    "API_KEY": config("CLOUDINARY_API_KEY", default=""),
+    "API_SECRET": config("CLOUDINARY_API_SECRET", default=""),
+}
+
+STORAGES = {
+    "default": {
+        "BACKEND": "django.core.files.storage.FileSystemStorage",
+    },
+    "staticfiles": {
+        "BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage",
+    },
+}
+
+if (
+    CLOUDINARY_STORAGE["CLOUD_NAME"]
+    and CLOUDINARY_STORAGE["API_KEY"]
+    and CLOUDINARY_STORAGE["API_SECRET"]
+):
+    STORAGES["default"]["BACKEND"] = "cloudinary_storage.storage.MediaCloudinaryStorage"
+
 PASSWORD_HASHERS = ["django.contrib.auth.hashers.BCryptSHA256PasswordHasher"]
 
 REST_FRAMEWORK = {
@@ -150,7 +179,11 @@ REST_FRAMEWORK = {
         "rest_framework_simplejwt.authentication.JWTAuthentication",
     ),
     "DEFAULT_PERMISSION_CLASSES": ["rest_framework.permissions.IsAuthenticated"],
-    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend", "rest_framework.filters.SearchFilter", "rest_framework.filters.OrderingFilter"],
+    "DEFAULT_FILTER_BACKENDS": [
+        "django_filters.rest_framework.DjangoFilterBackend",
+        "rest_framework.filters.SearchFilter",
+        "rest_framework.filters.OrderingFilter",
+    ],
     "DEFAULT_PAGINATION_CLASS": "rest_framework.pagination.PageNumberPagination",
     "PAGE_SIZE": 20,
 }
