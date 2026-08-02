@@ -24,3 +24,27 @@ class PrivateScopedViewSet(ReadOnlyViewSet):
             deleted_at__isnull=True,
         ).values("privada_id")
         return queryset.filter(**{f"{self.private_lookup}__in": private_ids})
+
+
+class PrivateScopedModelViewSet(
+    mixins.ListModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.DestroyModelMixin,
+    viewsets.GenericViewSet,
+):
+    """ViewSet CRUD cuyos recursos siempre están acotados a una privada."""
+
+    private_lookup = "privada_id"
+
+    def get_queryset(self):
+        queryset = super().get_queryset()
+        if self.request.user.is_staff:
+            return queryset
+        private_ids = PrivadaMiembro.objects.filter(
+            usuario=self.request.user,
+            status="activo",
+            deleted_at__isnull=True,
+        ).values("privada_id")
+        return queryset.filter(**{f"{self.private_lookup}__in": private_ids})

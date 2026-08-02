@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     "apps.notifications.apps.NotificationsConfig",
     "apps.communities.apps.CommunitiesConfig",
     "apps.directorio.apps.DirectorioConfig",
+    "apps.eventos.apps.EventosConfig",
     "apps.anuncios.apps.AnunciosConfig",
     "apps.reportes.apps.ReportesConfig",
     "apps.reservas.apps.ReservasConfig",

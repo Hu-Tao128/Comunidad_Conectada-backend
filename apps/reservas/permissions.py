@@ -1,6 +1,5 @@
-from common.permissions import ReadOnlyAuthenticated
+from rest_framework.permissions import IsAuthenticated
 
 
-class ReservacionReadPermission(ReadOnlyAuthenticated):
+class ReservacionReadPermission(IsAuthenticated):
     pass
-
