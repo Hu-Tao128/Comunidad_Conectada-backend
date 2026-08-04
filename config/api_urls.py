@@ -10,6 +10,7 @@ urlpatterns = [
     path("", include("apps.accounts.urls")),
     path("", include("apps.communities.urls")),
     path("", include("apps.directorio.urls")),
+    path("", include("apps.eventos.urls")),
     path("", include("apps.areas.urls")),
     path("", include("apps.reservas.urls")),
     path("", include("apps.pagos.urls")),
