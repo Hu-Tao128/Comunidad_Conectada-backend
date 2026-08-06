@@ -41,7 +41,6 @@ INSTALLED_APPS = [
     "cloudinary",
     "rest_framework",
     "django_filters",
-    "cloudinary",
     "apps.core.apps.CoreConfig",
     "apps.accounts.apps.AccountsConfig",
     "apps.auth.apps.AuthConfig",
