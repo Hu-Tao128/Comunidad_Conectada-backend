@@ -29,7 +29,7 @@ class GaleriaImagen(BaseModel):
         null=True,
         blank=True,
     )
-    archivo = models.ImageField(upload_to="galeria/")
+    archivo = models.ImageField(upload_to="galeria/", max_length=500)
     orden = models.PositiveSmallIntegerField(default=0)
 
     class Meta:
