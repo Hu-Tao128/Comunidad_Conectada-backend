@@ -57,6 +57,7 @@ INSTALLED_APPS = [
     "apps.areas.apps.AreasConfig",
     "apps.objetos_perdidos.apps.ObjetosPerdidosConfig",
     "apps.minutas.apps.MinutasConfig",
+    "apps.galeria.apps.GaleriaConfig",
 ]
 
 MIDDLEWARE = [
