@@ -43,7 +43,7 @@ class Perfil(models.Model):
     codigo_postal = models.CharField(max_length=10, blank=True)
     telefono = models.CharField(max_length=30, blank=True)
     casa = models.ForeignKey("communities.Casa", on_delete=models.PROTECT, related_name="perfiles", null=True, blank=True)
-    avatar = models.ImageField(upload_to="perfiles/", blank=True)
+    avatar = models.URLField(max_length=500, blank=True)
     bio = models.TextField(blank=True)
 
     class Meta:

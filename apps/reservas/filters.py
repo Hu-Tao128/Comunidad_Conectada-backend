@@ -3,6 +3,8 @@ from .models import Reservacion
 
 
 class ReservacionFilter(django_filters.FilterSet):
+    privada = django_filters.UUIDFilter(field_name="area__privada_id")
+
     class Meta:
         model = Reservacion
-        fields = ("area", "usuario", "estado", "fecha", "status")
+        fields = ("privada", "area", "usuario", "estado", "fecha", "status")

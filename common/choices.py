@@ -17,9 +17,17 @@ class Prioridad(models.TextChoices):
 
 class EstadoPago(models.TextChoices):
     PENDIENTE = "pendiente", "Pendiente"
+    EN_REVISION = "en_revision", "En revisión"
     PAGADO = "pagado", "Pagado"
     ATRASADO = "atrasado", "Atrasado"
     NO_PAGADO = "no_pagado", "No pagado"
+    DECLINADO = "declinado", "Declinado"
+
+
+class EstadoIntentoPago(models.TextChoices):
+    EN_REVISION = "en_revision", "En revisión"
+    ACEPTADO = "aceptado", "Aceptado"
+    DECLINADO = "declinado", "Declinado"
 
 
 class EstadoReservacion(models.TextChoices):
@@ -32,5 +40,6 @@ __all__ = (
     "EstadoIncidente",
     "Prioridad",
     "EstadoPago",
+    "EstadoIntentoPago",
     "EstadoReservacion",
 )

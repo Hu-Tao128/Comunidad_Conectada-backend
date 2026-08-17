@@ -24,6 +24,7 @@ Comunidad_Conectada-backend/
 │   ├── communities/         # Privadas, módulos, miembros
 │   ├── areas/               # Áreas comunes (privada)
 │   ├── directorio/          # Directorio telefónico
+│   ├── eventos/             # Eventos comunitarios
 │   ├── anuncios/            # Anuncios
 │   ├── reportes/            # Reportes e incidentes
 │   ├── reservas/            # Reservaciones de áreas
@@ -169,9 +170,9 @@ Relación many-to-many entre privadas y módulos del sistema.
 |--------|-------------------------------|--------------------------|
 | GET    | `/api/usuarios/`              | Usuarios de la privada   |
 | GET    | `/api/reportes/`              | Reportes                 |
-| GET    | `/api/reservaciones/`         | Reservaciones            |
-| GET    | `/api/directorio/`            | Directorio               |
-| GET    | `/api/eventos/`               | Eventos                  |
+| GET, POST, PATCH, DELETE | `/api/reservaciones/` y `/{id}/` | Reservaciones (el habitante crea/cancela las propias; el moderador administra) |
+| GET, POST, PATCH, DELETE | `/api/directorio/` y `/{id}/`    | Directorio (administrado por moderadores) |
+| GET, POST, PATCH, DELETE | `/api/eventos/` y `/{id}/`       | Eventos (administrados por moderadores) |
 | GET    | `/api/objetos-perdidos/`      | Objetos perdidos         |
 | GET    | `/api/modulos-sistema/`       | Catálogo de módulos      |
 

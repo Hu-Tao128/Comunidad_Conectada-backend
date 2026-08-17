@@ -1,6 +1,5 @@
-from common.permissions import ReadOnlyAuthenticated
+from rest_framework.permissions import IsAuthenticated
 
 
-class ObjetosPerdidosReadPermission(ReadOnlyAuthenticated):
-    pass
-
+class ObjetosPerdidosPermission(IsAuthenticated):
+    """El alcance por privada y los roles se validan en cada vista/acción."""

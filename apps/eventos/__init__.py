@@ -1,0 +1,1 @@
+"""Módulo de eventos comunitarios."""

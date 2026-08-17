@@ -1,5 +1,11 @@
 from django.contrib import admin
-from .models import Incidente, Reporte
+from .models import Incidente, Reporte, TipoReporte
+
+
+@admin.register(TipoReporte)
+class TipoReporteAdmin(admin.ModelAdmin):
+    list_display = ("nombre", "codigo", "status")
+    search_fields = ("nombre", "codigo")
 
 
 @admin.register(Reporte)

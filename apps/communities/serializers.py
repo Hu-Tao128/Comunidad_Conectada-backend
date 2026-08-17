@@ -1,5 +1,31 @@
+import bleach
+from bleach.css_sanitizer import CSSSanitizer
 from rest_framework import serializers
-from .models import Casa, Modulo, ModuloSistema, Privada, PrivadaMiembro, PrivadaModulo
+from .models import Casa, Modulo, ModuloSistema, Privada, PrivadaMiembro, PrivadaModulo, Reglamento, RolPrivada
+
+
+class ReglamentoSerializer(serializers.ModelSerializer):
+    privada_nombre = serializers.CharField(source="privada.nombre", read_only=True)
+    actualizado_por_nombre = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Reglamento
+        fields = ("id", "privada", "privada_nombre", "contenido", "actualizado_por_nombre", "updated_at")
+        read_only_fields = ("id", "privada", "privada_nombre", "actualizado_por_nombre", "updated_at")
+
+    def get_actualizado_por_nombre(self, obj):
+        usuario = obj.updated_by or obj.created_by
+        if not usuario:
+            return ""
+        perfil = getattr(usuario, "perfil", None)
+        nombre = " ".join(filter(None, (getattr(perfil, "nombres", ""), getattr(perfil, "apellidos", ""))))
+        return nombre or usuario.email
+
+    def validate_contenido(self, value):
+        tags = {"p", "br", "h1", "h2", "h3", "h4", "h5", "h6", "strong", "b", "em", "i", "u", "s", "sub", "sup", "code", "pre", "ul", "ol", "li", "blockquote", "table", "thead", "tbody", "tfoot", "tr", "th", "td", "a", "hr", "span"}
+        attributes = {"a": ["href", "title", "target", "rel"], "th": ["colspan", "rowspan"], "td": ["colspan", "rowspan"], "p": ["style"], "h1": ["style"], "h2": ["style"], "h3": ["style"], "h4": ["style"], "h5": ["style"], "h6": ["style"]}
+        css = CSSSanitizer(allowed_css_properties={"text-align", "margin-left"})
+        return bleach.clean(value, tags=tags, attributes=attributes, protocols={"http", "https", "mailto"}, strip=True, css_sanitizer=css)
 
 
 class PrivadaSerializer(serializers.ModelSerializer):
@@ -33,8 +59,8 @@ class PrivadaMiembroSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PrivadaMiembro
-        fields = ("id", "privada", "privada_nombre", "privada_codigo", "modulos_contratados", "usuario", "rol", "status")
-        read_only_fields = ("id", "usuario", "rol", "status")
+        fields = ("id", "privada", "privada_nombre", "privada_codigo", "modulos_contratados", "usuario", "rol", "status", "created_at", "inactivated_at")
+        read_only_fields = ("id", "usuario", "rol", "status", "created_at", "inactivated_at")
 
     def get_modulos_contratados(self, obj):
         return [
@@ -43,6 +69,16 @@ class PrivadaMiembroSerializer(serializers.ModelSerializer):
                 status="activo", deleted_at__isnull=True, modulo__activo=True
             ).select_related("modulo")
         ]
+
+
+class AgregarMiembroSerializer(serializers.Serializer):
+    email = serializers.EmailField()
+    rol = serializers.ChoiceField(choices=RolPrivada.choices)
+
+
+class EditarMiembroSerializer(serializers.Serializer):
+    rol = serializers.ChoiceField(choices=RolPrivada.choices)
+    status = serializers.ChoiceField(choices=(("activo", "Activo"), ("suspendido", "Inactivo")))
 
 
 class ModuloSistemaSerializer(serializers.ModelSerializer):

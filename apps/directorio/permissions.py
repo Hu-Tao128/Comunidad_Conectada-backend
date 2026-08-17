@@ -1,6 +1,5 @@
-from common.permissions import ReadOnlyAuthenticated
+from rest_framework.permissions import IsAuthenticated
 
 
-class DirectorioReadPermission(ReadOnlyAuthenticated):
+class DirectorioReadPermission(IsAuthenticated):
     pass
-

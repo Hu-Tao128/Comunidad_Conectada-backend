@@ -5,10 +5,10 @@ from .models import Incidente, Reporte
 class ReporteFilter(django_filters.FilterSet):
     class Meta:
         model = Reporte
-        fields = ("privada", "creador", "supervisor", "estado", "status")
+        fields = ("privada", "creador", "incidente", "estado", "prioridad", "tipo_categoria", "status")
 
 
 class IncidenteFilter(django_filters.FilterSet):
     class Meta:
         model = Incidente
-        fields = ("reporte", "tipo")
+        fields = ("privada", "usuario", "estado", "prioridad", "tipo_categoria")
