@@ -25,3 +25,11 @@ class AreaComunitaria(BaseModel):
 
     def __str__(self) -> str:
         return self.nombre
+
+
+class AreaImagen(BaseModel):
+    area = models.ForeignKey(AreaComunitaria, on_delete=models.CASCADE, related_name="galeria")
+    imagen = models.ImageField(upload_to="areas/galeria/")
+
+    class Meta:
+        ordering = ("created_at",)

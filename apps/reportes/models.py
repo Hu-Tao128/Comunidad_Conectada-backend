@@ -86,3 +86,19 @@ class Incidente(BaseModel):
 
     def __str__(self) -> str:
         return f"Incidente #{self.num}: {self.titulo}"
+
+
+class ReporteImagen(BaseModel):
+    reporte = models.ForeignKey(Reporte, on_delete=models.CASCADE, related_name="galeria")
+    url = models.URLField(max_length=500)
+
+    class Meta:
+        ordering = ("created_at",)
+
+
+class IncidenteImagen(BaseModel):
+    incidente = models.ForeignKey(Incidente, on_delete=models.CASCADE, related_name="galeria")
+    url = models.URLField(max_length=500)
+
+    class Meta:
+        ordering = ("created_at",)

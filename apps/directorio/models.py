@@ -16,6 +16,10 @@ class Directorio(BaseModel):
     num_tel = models.CharField(max_length=30, blank=True)
     codigo = models.CharField(max_length=50, blank=True)
     ubicacion = models.CharField(max_length=255, blank=True)
+    tipo_ubicacion = models.CharField(max_length=12, choices=(("local", "Local"), ("externo", "Externo")), default="local")
+    numero_casa = models.CharField(max_length=30, blank=True)
+    direccion_externa = models.CharField(max_length=255, blank=True)
+    maps_url = models.URLField(blank=True)
     imagenes = models.ImageField(upload_to="directorio/", blank=True)
 
     class Meta:
@@ -28,3 +32,11 @@ class Directorio(BaseModel):
 
     def __str__(self) -> str:
         return self.nombre
+
+
+class DirectorioImagen(BaseModel):
+    directorio = models.ForeignKey(Directorio, on_delete=models.CASCADE, related_name="galeria")
+    imagen = models.ImageField(upload_to="directorio/galeria/")
+
+    class Meta:
+        ordering = ("created_at",)

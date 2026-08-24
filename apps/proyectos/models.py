@@ -26,6 +26,7 @@ class Proyecto(BaseModel):
     tipo = models.CharField(max_length=80, blank=True)
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
+    imagen = models.ImageField(upload_to="proyectos/", blank=True)
     usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name="proyectos")
 
     class Meta:
@@ -36,3 +37,11 @@ class Proyecto(BaseModel):
 
     def __str__(self) -> str:
         return self.nombre
+
+
+class ProyectoImagen(BaseModel):
+    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name="galeria")
+    imagen = models.ImageField(upload_to="proyectos/galeria/")
+
+    class Meta:
+        ordering = ("created_at",)

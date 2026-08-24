@@ -54,6 +54,14 @@ class ObjetoPerdido(BaseModel):
         return self.nombre
 
 
+class ObjetoPerdidoImagen(BaseModel):
+    objeto = models.ForeignKey(ObjetoPerdido, on_delete=models.CASCADE, related_name="galeria")
+    imagen = models.ImageField(upload_to="objetos_perdidos/galeria/")
+
+    class Meta:
+        ordering = ("created_at",)
+
+
 class PreguntaValidacion(BaseModel):
     objeto = models.ForeignKey(ObjetoPerdido, on_delete=models.CASCADE, related_name="preguntas_validacion")
     pregunta = models.CharField(max_length=300)

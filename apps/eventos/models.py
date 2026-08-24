@@ -31,3 +31,11 @@ class Evento(BaseModel):
 
     def __str__(self):
         return self.titulo
+
+
+class EventoImagen(BaseModel):
+    evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name="galeria")
+    imagen = models.ImageField(upload_to="eventos/galeria/")
+
+    class Meta:
+        ordering = ("created_at",)
