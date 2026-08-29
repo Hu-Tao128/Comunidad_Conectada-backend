@@ -14,22 +14,30 @@ class AreaComunitaria(BaseModel):
     codigo = models.CharField(max_length=30, unique=True)
     nombre = models.CharField(max_length=120)
     descripcion = models.TextField(blank=True)
-    capacidad = models.PositiveIntegerField(default=1, validators=[MinValueValidator(1)])
-    imagen = models.ImageField(upload_to="areas/", blank=True)
+    capacidad = models.PositiveIntegerField(
+        default=1, validators=[MinValueValidator(1)]
+    )
+    imagen = models.ImageField(upload_to="areas/", blank=True, max_length=500)
 
     class Meta:
         verbose_name = "área comunitaria"
         verbose_name_plural = "áreas comunitarias"
         ordering = ("nombre",)
-        constraints = [models.UniqueConstraint(fields=("privada", "nombre"), name="uq_area_privada_nombre")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("privada", "nombre"), name="uq_area_privada_nombre"
+            )
+        ]
 
     def __str__(self) -> str:
         return self.nombre
 
 
 class AreaImagen(BaseModel):
-    area = models.ForeignKey(AreaComunitaria, on_delete=models.CASCADE, related_name="galeria")
-    imagen = models.ImageField(upload_to="areas/galeria/")
+    area = models.ForeignKey(
+        AreaComunitaria, on_delete=models.CASCADE, related_name="galeria"
+    )
+    imagen = models.ImageField(upload_to="areas/galeria/", max_length=500)
 
     class Meta:
         ordering = ("created_at",)

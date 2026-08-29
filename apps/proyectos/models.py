@@ -18,30 +18,42 @@ class Proyecto(BaseModel):
         CANCELADO = "cancelado", "Cancelado"
 
     codigo = models.CharField(max_length=30, unique=True)
-    privada = models.ForeignKey(Privada, on_delete=models.PROTECT, related_name="proyectos")
+    privada = models.ForeignKey(
+        Privada, on_delete=models.PROTECT, related_name="proyectos"
+    )
     nombre = models.CharField(max_length=180)
     descripcion = models.TextField()
-    estado = models.CharField(max_length=20, choices=Estado.choices, default=Estado.PROPUESTO, db_index=True)
+    estado = models.CharField(
+        max_length=20, choices=Estado.choices, default=Estado.PROPUESTO, db_index=True
+    )
     capacidad = models.PositiveIntegerField(default=1)
     tipo = models.CharField(max_length=80, blank=True)
     fecha_inicio = models.DateField(null=True, blank=True)
     fecha_fin = models.DateField(null=True, blank=True)
-    imagen = models.ImageField(upload_to="proyectos/", blank=True)
-    usuario = models.ForeignKey(Usuario, on_delete=models.PROTECT, related_name="proyectos")
+    imagen = models.ImageField(upload_to="proyectos/", blank=True, max_length=500)
+    usuario = models.ForeignKey(
+        Usuario, on_delete=models.PROTECT, related_name="proyectos"
+    )
 
     class Meta:
         verbose_name = "proyecto"
         verbose_name_plural = "proyectos"
         ordering = ("-created_at",)
-        constraints = [models.UniqueConstraint(fields=("privada", "nombre"), name="uq_proyecto_privada_nombre")]
+        constraints = [
+            models.UniqueConstraint(
+                fields=("privada", "nombre"), name="uq_proyecto_privada_nombre"
+            )
+        ]
 
     def __str__(self) -> str:
         return self.nombre
 
 
 class ProyectoImagen(BaseModel):
-    proyecto = models.ForeignKey(Proyecto, on_delete=models.CASCADE, related_name="galeria")
-    imagen = models.ImageField(upload_to="proyectos/galeria/")
+    proyecto = models.ForeignKey(
+        Proyecto, on_delete=models.CASCADE, related_name="galeria"
+    )
+    imagen = models.ImageField(upload_to="proyectos/galeria/", max_length=500)
 
     class Meta:
         ordering = ("created_at",)
