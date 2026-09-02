@@ -10,14 +10,16 @@ from common.models import BaseModel
 class Evento(BaseModel):
     """Actividad publicada para los miembros de una privada."""
 
-    privada = models.ForeignKey(Privada, on_delete=models.PROTECT, related_name="eventos")
+    privada = models.ForeignKey(
+        Privada, on_delete=models.PROTECT, related_name="eventos"
+    )
     titulo = models.CharField(max_length=180)
     descripcion = models.TextField(blank=True)
     fecha_inicio = models.DateTimeField(db_index=True)
     fecha_fin = models.DateTimeField(null=True, blank=True)
     ubicacion = models.CharField(max_length=255, blank=True)
     capacidad = models.PositiveIntegerField(null=True, blank=True)
-    imagen = models.ImageField(upload_to="eventos/", blank=True)
+    imagen = models.ImageField(upload_to="eventos/", blank=True, max_length=500)
 
     class Meta:
         verbose_name = "evento"
@@ -27,7 +29,17 @@ class Evento(BaseModel):
 
     def clean(self):
         if self.fecha_fin and self.fecha_fin < self.fecha_inicio:
-            raise ValidationError({"fecha_fin": "La fecha final debe ser posterior a la inicial."})
+            raise ValidationError(
+                {"fecha_fin": "La fecha final debe ser posterior a la inicial."}
+            )
 
     def __str__(self):
         return self.titulo
+
+
+class EventoImagen(BaseModel):
+    evento = models.ForeignKey(Evento, on_delete=models.CASCADE, related_name="galeria")
+    imagen = models.ImageField(upload_to="eventos/galeria/", max_length=500)
+
+    class Meta:
+        ordering = ("created_at",)

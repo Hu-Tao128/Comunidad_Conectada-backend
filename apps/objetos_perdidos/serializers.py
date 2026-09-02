@@ -1,7 +1,8 @@
 from rest_framework import serializers
 
 from apps.communities.models import PrivadaMiembro, RolPrivada
-from .models import EntregaObjeto, EvidenciaPropiedad, ObjetoPerdido, PreguntaValidacion, Reclamacion, RespuestaValidacion
+from common.gallery import sincronizar_galeria
+from .models import EntregaObjeto, EvidenciaPropiedad, ObjetoPerdido, ObjetoPerdidoImagen, PreguntaValidacion, Reclamacion, RespuestaValidacion
 
 
 class UsuarioResumenSerializer(serializers.Serializer):
@@ -22,6 +23,9 @@ class PreguntaSerializer(serializers.ModelSerializer):
 
 
 class ObjetoPerdidoSerializer(serializers.ModelSerializer):
+    galeria = serializers.SerializerMethodField()
+    galeria_archivos = serializers.ListField(child=serializers.ImageField(), write_only=True, required=False)
+    galeria_eliminar = serializers.ListField(child=serializers.UUIDField(), write_only=True, required=False)
     reportado_por_detalle = UsuarioResumenSerializer(source="reportado_por", read_only=True)
     responsable_resguardo_detalle = UsuarioResumenSerializer(source="responsable_resguardo", read_only=True)
     posible_localizador_detalle = UsuarioResumenSerializer(source="posible_localizador", read_only=True)
@@ -32,8 +36,11 @@ class ObjetoPerdidoSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = ObjetoPerdido
-        fields = ("id", "num", "privada", "reportado_por", "reportado_por_detalle", "nombre", "descripcion", "tipo", "estado_caso", "finalizado", "imagen", "ubicacion", "fecha_evento", "informacion_adicional", "detalles_privados", "responsable_resguardo", "responsable_resguardo_detalle", "posible_localizador", "posible_localizador_detalle", "fecha_reporte", "fecha_encontrado", "fecha_devuelto", "recuperador", "preguntas", "preguntas_json", "mi_reclamacion", "status", "created_at", "updated_at")
+        fields = ("id", "num", "privada", "reportado_por", "reportado_por_detalle", "nombre", "descripcion", "tipo", "estado_caso", "finalizado", "imagen", "galeria", "galeria_archivos", "galeria_eliminar", "ubicacion", "fecha_evento", "informacion_adicional", "detalles_privados", "responsable_resguardo", "responsable_resguardo_detalle", "posible_localizador", "posible_localizador_detalle", "fecha_reporte", "fecha_encontrado", "fecha_devuelto", "recuperador", "preguntas", "preguntas_json", "mi_reclamacion", "status", "created_at", "updated_at")
         read_only_fields = ("id", "num", "reportado_por", "estado_caso", "posible_localizador", "fecha_reporte", "fecha_encontrado", "fecha_devuelto", "recuperador", "status", "created_at", "updated_at")
+
+    def get_galeria(self, instance):
+        return [{"id": str(image.id), "url": image.imagen.url} for image in instance.galeria.all()]
 
     def get_mi_reclamacion(self, instance):
         request = self.context.get("request")
@@ -79,15 +86,37 @@ class ObjetoPerdidoSerializer(serializers.ModelSerializer):
         return attrs
 
     def create(self, validated_data):
+        gallery_files = validated_data.pop("galeria_archivos", [])
+        validated_data.pop("galeria_eliminar", [])
         preguntas = validated_data.pop("preguntas_validacion", [])
         objeto = super().create(validated_data)
+        sincronizar_galeria(
+            objeto,
+            related_name="galeria",
+            model=ObjetoPerdidoImagen,
+            parent_field="objeto",
+            files=gallery_files,
+            removed_ids=[],
+            user=self.context["request"].user,
+        )
         for index, pregunta in enumerate(preguntas, 1):
             PreguntaValidacion.objects.create(objeto=objeto, orden=pregunta.get("orden", index), pregunta=pregunta["pregunta"], created_by=objeto.reportado_por)
         return objeto
 
     def update(self, instance, validated_data):
+        gallery_files = validated_data.pop("galeria_archivos", [])
+        removed_ids = validated_data.pop("galeria_eliminar", [])
         preguntas = validated_data.pop("preguntas_validacion", None)
         objeto = super().update(instance, validated_data)
+        sincronizar_galeria(
+            objeto,
+            related_name="galeria",
+            model=ObjetoPerdidoImagen,
+            parent_field="objeto",
+            files=gallery_files,
+            removed_ids=removed_ids,
+            user=self.context["request"].user,
+        )
         if preguntas is not None and not instance.reclamaciones.exists():
             instance.preguntas_validacion.all().delete()
             for index, pregunta in enumerate(preguntas, 1):

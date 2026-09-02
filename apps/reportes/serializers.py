@@ -3,14 +3,13 @@ import cloudinary
 import cloudinary.uploader
 from rest_framework import serializers
 
-from .models import Incidente, Reporte, TipoReporte
+from common.gallery import validar_imagen
+
+from .models import Incidente, IncidenteImagen, Reporte, ReporteImagen, TipoReporte
 
 
 def subir_evidencia(archivo, *, usuario_id, privada_id) -> str:
-    if archivo.size > 8 * 1024 * 1024:
-        raise serializers.ValidationError({"evidencia_archivo": "La imagen no puede superar 8 MB."})
-    if archivo.content_type not in {"image/jpeg", "image/png", "image/webp"}:
-        raise serializers.ValidationError({"evidencia_archivo": "Solo se permiten imágenes JPG, PNG o WEBP."})
+    validar_imagen(archivo, "evidencia_archivo")
     if not all((settings.CLOUDINARY_CLOUD_NAME, settings.CLOUDINARY_API_KEY, settings.CLOUDINARY_API_SECRET)):
         raise serializers.ValidationError({"evidencia_archivo": "Cloudinary no está configurado en el servidor."})
     cloudinary.config(cloud_name=settings.CLOUDINARY_CLOUD_NAME, api_key=settings.CLOUDINARY_API_KEY,
@@ -22,6 +21,18 @@ def subir_evidencia(archivo, *, usuario_id, privada_id) -> str:
     return resultado["secure_url"]
 
 
+class ReporteGaleriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ReporteImagen
+        fields = ("id", "url")
+
+
+class IncidenteGaleriaSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = IncidenteImagen
+        fields = ("id", "url")
+
+
 class TipoReporteSerializer(serializers.ModelSerializer):
     class Meta:
         model = TipoReporte
@@ -30,6 +41,9 @@ class TipoReporteSerializer(serializers.ModelSerializer):
 
 class IncidenteSerializer(serializers.ModelSerializer):
     evidencia_archivo = serializers.ImageField(write_only=True, required=False)
+    galeria = IncidenteGaleriaSerializer(many=True, read_only=True)
+    galeria_archivos = serializers.ListField(child=serializers.ImageField(), write_only=True, required=False)
+    galeria_eliminar = serializers.ListField(child=serializers.UUIDField(), write_only=True, required=False)
     fecha_incidente = serializers.DateTimeField(required=True, allow_null=False)
     tipo_detalle = TipoReporteSerializer(source="tipo_categoria", read_only=True)
     habitante = serializers.SerializerMethodField()
@@ -41,7 +55,8 @@ class IncidenteSerializer(serializers.ModelSerializer):
         fields = (
             "id", "num", "titulo", "descripcion", "tipo_categoria", "tipo_detalle",
             "prioridad", "estado", "fecha_incidente", "fecha_registro", "ubicacion",
-            "evidencia", "evidencia_archivo", "usuario", "habitante", "privada",
+            "evidencia", "evidencia_archivo", "galeria", "galeria_archivos", "galeria_eliminar",
+            "usuario", "habitante", "privada",
             "tiene_reporte", "reporte_id", "created_at",
         )
         read_only_fields = ("id", "num", "evidencia", "usuario", "habitante", "estado", "fecha_registro", "tiene_reporte", "reporte_id", "created_at")
@@ -61,23 +76,46 @@ class IncidenteSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         archivo = validated_data.pop("evidencia_archivo", None)
+        gallery_files = validated_data.pop("galeria_archivos", [])
+        validated_data.pop("galeria_eliminar", [])
         incidente = super().create(validated_data)
         if archivo:
             incidente.evidencia = subir_evidencia(archivo, usuario_id=incidente.usuario_id, privada_id=incidente.privada_id)
             incidente.save(update_fields=("evidencia", "updated_at"))
+        for image in gallery_files:
+            IncidenteImagen.objects.create(
+                incidente=incidente,
+                url=subir_evidencia(image, usuario_id=incidente.usuario_id, privada_id=incidente.privada_id),
+                created_by=self.context["request"].user,
+                updated_by=self.context["request"].user,
+            )
         return incidente
 
     def update(self, instance, validated_data):
         archivo = validated_data.pop("evidencia_archivo", None)
+        gallery_files = validated_data.pop("galeria_archivos", [])
+        removed_ids = validated_data.pop("galeria_eliminar", [])
         incidente = super().update(instance, validated_data)
         if archivo:
             incidente.evidencia = subir_evidencia(archivo, usuario_id=incidente.usuario_id, privada_id=incidente.privada_id)
             incidente.save(update_fields=("evidencia", "updated_at"))
+        if removed_ids:
+            incidente.galeria.filter(id__in=removed_ids).delete()
+        for image in gallery_files:
+            IncidenteImagen.objects.create(
+                incidente=incidente,
+                url=subir_evidencia(image, usuario_id=incidente.usuario_id, privada_id=incidente.privada_id),
+                created_by=self.context["request"].user,
+                updated_by=self.context["request"].user,
+            )
         return incidente
 
 
 class ReporteSerializer(serializers.ModelSerializer):
     evidencia_archivo = serializers.ImageField(write_only=True, required=False)
+    galeria = ReporteGaleriaSerializer(many=True, read_only=True)
+    galeria_archivos = serializers.ListField(child=serializers.ImageField(), write_only=True, required=False)
+    galeria_eliminar = serializers.ListField(child=serializers.UUIDField(), write_only=True, required=False)
     incidente_detalle = IncidenteSerializer(source="incidente", read_only=True)
     tipo_detalle = TipoReporteSerializer(source="tipo_categoria", read_only=True)
     moderador = serializers.SerializerMethodField()
@@ -87,7 +125,8 @@ class ReporteSerializer(serializers.ModelSerializer):
         fields = (
             "id", "num", "privada", "incidente", "incidente_detalle", "creador", "moderador",
             "titulo", "descripcion", "tipo_categoria", "tipo_detalle", "prioridad", "estado",
-            "fecha_suceso", "evidencia", "evidencia_archivo", "created_at", "updated_at",
+            "fecha_suceso", "evidencia", "evidencia_archivo", "galeria", "galeria_archivos",
+            "galeria_eliminar", "created_at", "updated_at",
         )
         read_only_fields = ("id", "num", "privada", "creador", "moderador", "estado", "tipo_categoria", "tipo_detalle", "prioridad", "fecha_suceso", "evidencia", "created_at", "updated_at")
 
@@ -109,16 +148,36 @@ class ReporteSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data):
         archivo = validated_data.pop("evidencia_archivo", None)
+        gallery_files = validated_data.pop("galeria_archivos", [])
+        validated_data.pop("galeria_eliminar", [])
         reporte = super().create(validated_data)
         if archivo:
             reporte.evidencia = subir_evidencia(archivo, usuario_id=reporte.creador_id, privada_id=reporte.privada_id)
             reporte.save(update_fields=("evidencia", "updated_at"))
+        for image in gallery_files:
+            ReporteImagen.objects.create(
+                reporte=reporte,
+                url=subir_evidencia(image, usuario_id=reporte.creador_id, privada_id=reporte.privada_id),
+                created_by=self.context["request"].user,
+                updated_by=self.context["request"].user,
+            )
         return reporte
 
     def update(self, instance, validated_data):
         archivo = validated_data.pop("evidencia_archivo", None)
+        gallery_files = validated_data.pop("galeria_archivos", [])
+        removed_ids = validated_data.pop("galeria_eliminar", [])
         reporte = super().update(instance, validated_data)
         if archivo:
             reporte.evidencia = subir_evidencia(archivo, usuario_id=reporte.creador_id, privada_id=reporte.privada_id)
             reporte.save(update_fields=("evidencia", "updated_at"))
+        if removed_ids:
+            reporte.galeria.filter(id__in=removed_ids).delete()
+        for image in gallery_files:
+            ReporteImagen.objects.create(
+                reporte=reporte,
+                url=subir_evidencia(image, usuario_id=reporte.creador_id, privada_id=reporte.privada_id),
+                created_by=self.context["request"].user,
+                updated_by=self.context["request"].user,
+            )
         return reporte
